@@ -1,0 +1,9 @@
+[package]
+name = "rusty_inference"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+candle-core = { version = "0.9.1", features = ["metal"] }
+safetensors = "0.6.2"
+tokenizers = "0.22.1"
