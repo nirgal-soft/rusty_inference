@@ -1,10 +1,12 @@
-use candle_core::{DType, Device, Result, Tensor};
-use candle_nn::{VarBuilder, Module, Linear, Embedding, LayerNorm};
-use crate::model::ModelConfig;
+use candle_core::{Result, Tensor, IndexOp};
+use candle_nn::{VarBuilder, Module, Linear,};
+use crate::model::{ModelConfig, linear_with_bias};
 
+#[allow(dead_code)]
 pub struct Attention{
   c_attn: Linear,
   c_proj: Linear,
+  bias: Option<Tensor>,
   n_head: usize,
   n_embd: usize,
 }
@@ -14,13 +16,15 @@ impl Attention{
     let n_embd = cfg.n_embd;
     let n_head = cfg.n_head;
 
-    let c_attn = candle_nn::linear(n_embd, 3 * n_embd, vb.pp("c_attn"))?;
-    let c_proj = candle_nn::linear(n_embd, n_embd, vb.pp("c_proj"))?;
+    let c_attn = linear_with_bias(n_embd, 3 * n_embd, vb.pp("c_attn"))?;
+    let c_proj = linear_with_bias(n_embd, n_embd, vb.pp("c_proj"))?;
 
-    Ok(Self{c_attn, c_proj, n_head, n_embd})
+    let bias = vb.get((1, 1, cfg.n_ctx, cfg.n_ctx), "bias").ok();
+
+    Ok(Self{c_attn, c_proj, bias, n_head, n_embd})
   }
 
-  pub fn forward(&self, x: &Tensor, mask: Option<&Tensor>) -> Result<Tensor>{
+  pub fn forward(&self, x: &Tensor, _mask: Option<&Tensor>) -> Result<Tensor>{
     let(b, t, c) = x.dims3()?;
     let head_dim = c / self.n_head;
 
@@ -44,8 +48,12 @@ impl Attention{
     let scores = (scores/scale)?;
 
     //apply casual mask if provided
-    let scores = if let Some(mask) = mask{
-      scores.broadcast_add(mask)?
+    // let scores = if let Some(mask) = mask{
+    //   scores.broadcast_add(mask)?
+    let scores = if let Some(bias) = &self.bias{
+      let mask = bias.i((.., .., ..t, ..t))?;
+      let mask = ((mask - 1.0)? * 1e10)?;
+      scores.broadcast_add(&mask)?
     }else{
       scores
     };
