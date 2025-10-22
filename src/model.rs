@@ -79,7 +79,13 @@ impl GPT{
     // let logits = x.matmul(&self.wte.embeddings().t()?)?;
     let (b, t, c) = x.dims3()?;
     let x_flat = x.reshape((b*t, c))?;
-    let logits_flat = x_flat.matmul(&self.wte.embeddings().t()?)?;
+    // let logits_flat = x_flat.matmul(&self.wte.embeddings().t()?)?;
+    // let logits = logits_flat.reshape((b, t, self.config.vocab_size))?;
+    let wte_weights = self.wte.embeddings();
+
+    let output_weights = wte_weights.t()?;
+
+    let logits_flat = x_flat.matmul(&output_weights)?;
     let logits = logits_flat.reshape((b, t, self.config.vocab_size))?;
 
     Ok(logits)
