@@ -1,8 +1,8 @@
-use candle_core::{DType, Device, Result, Tensor, IndexOp};
+use candle_core::{DType, Device, Result, Tensor};
 use candle_nn::{VarBuilder, Module, Embedding, LayerNorm, Linear};
 use crate::block::Block;
 
-pub fn linear_with_bias(in_features: usize, out_features: usize, vb:VarBuilder) -> Result<Linear>{
+pub fn linear_with_bias(in_features: usize, out_features: usize, vb: VarBuilder) -> Result<Linear> {
   let weight = vb.get((in_features, out_features), "weight")?;
   let weight = weight.t()?;
   let bias = vb.get(out_features, "bias")?;
@@ -17,12 +17,12 @@ pub struct ModelConfig{
   pub n_head: usize,
   pub n_layer: usize,
   pub eps: f32
-}
+  }
 
 impl ModelConfig{
-  pub fn gpt2_small() -> Self{
-    Self{
-      vocab_size: 50257,
+pub fn gpt2_small() -> Self{
+Self{
+vocab_size: 50257,
       n_ctx: 1024,
       n_embd: 768,
       n_head: 12,
@@ -65,26 +65,21 @@ impl GPT{
     let (_b, t) = input_ids.dims2()?;
     let device = input_ids.device();
 
-    let token_embeddings = self.wte.forward(input_ids)?;
+    let tok_emb = self.wte.forward(input_ids)?;
     let pos_ids = Tensor::arange(0u32, t as u32, device)?;
-    let pos_embeddings = self.wpe.forward(&pos_ids)?;
-    let mut x = token_embeddings.broadcast_add(&pos_embeddings)?;
+    let pos_emb = self.wpe.forward(&pos_ids)?.unsqueeze(0)?;
+    let mut x = (&tok_emb + &pos_emb)?;
 
+    // Run through ALL blocks
     for block in &self.blocks{
       x = block.forward(&x, None)?;
     }
 
     let x = self.ln_f.forward(&x)?;
 
-    // let logits = x.matmul(&self.wte.embeddings().t()?)?;
     let (b, t, c) = x.dims3()?;
     let x_flat = x.reshape((b*t, c))?;
-    // let logits_flat = x_flat.matmul(&self.wte.embeddings().t()?)?;
-    // let logits = logits_flat.reshape((b, t, self.config.vocab_size))?;
-    let wte_weights = self.wte.embeddings();
-
-    let output_weights = wte_weights.t()?;
-
+    let output_weights = self.wte.embeddings().t()?;
     let logits_flat = x_flat.matmul(&output_weights)?;
     let logits = logits_flat.reshape((b, t, self.config.vocab_size))?;
 

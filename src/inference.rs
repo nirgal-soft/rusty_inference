@@ -45,13 +45,7 @@ impl InferenceEngine{
       // }
 
       // Check logit statistics
-      let logits_vec = last_logits.to_vec1::<f32>()?;
-      let max_logit = logits_vec.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-      let min_logit = logits_vec.iter().cloned().fold(f32::INFINITY, f32::min);
-      let mean_logit: f32 = logits_vec.iter().sum::<f32>() / logits_vec.len() as f32;
 
-      println!("Token {}: max={:.2}, min={:.2}, mean={:.2}", 
-      tokens.len(), max_logit, min_logit, mean_logit);
       let next_token = self.sample(&last_logits, params)?;
 
       // if self.is_eos_token(next_token){

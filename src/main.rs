@@ -1,4 +1,4 @@
-use candle_core::{Device, Tensor, Module, IndexOp};
+use candle_core::Device;
 pub mod activations;
 pub mod block;
 pub mod inference;
@@ -10,9 +10,9 @@ pub mod utils;
 fn main() -> anyhow::Result<()>{
   let model_path = "models/gpt2-small/model.safetensors";
 
-  // println!("=== inspecting model file ===");
-  // utils::list_tensors(model_path)?;
-  // println!();
+  println!("=== inspecting model file ===");
+  utils::list_tensors(model_path)?;
+  println!();
 
   // let device = Device::new_metal(0).unwrap_or(Device::Cpu);
   let device = Device::Cpu;
